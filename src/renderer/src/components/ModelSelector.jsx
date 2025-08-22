@@ -1,30 +1,26 @@
 // src/renderer/src/components/ModelSelector.jsx
-import { useState, useRef, useEffect } from 'react'; // 1. Import useRef and useEffect
+import { useState, useRef, useEffect } from 'react';
 
 function ModelSelector({ selectedModel, setSelectedModel }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const models = ['llama3', 'mistral', 'codellama', 'phi'];
-  const dropdownRef = useRef(null); // 2. Create a ref
+  const dropdownRef = useRef(null);
 
-  // 3. Add the useEffect hook to handle clicks outside
   useEffect(() => {
-    // Function to call when a click is detected
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false); // Close the dropdown
+        setIsDropdownOpen(false);
       }
     };
 
-    // Add the event listener when the dropdown is open
     if (isDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
-    // Cleanup function to remove the event listener
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDropdownOpen]); // This effect depends on the dropdown's state
+  }, [isDropdownOpen]);
 
   const handleSelectModel = (model) => {
     setSelectedModel(model);
@@ -32,11 +28,10 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
   };
 
   return (
-    // 4. Attach the ref to the main container div
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-zinc-700"
+        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-zinc-700 cursor-pointer"
       >
         <span className="font-semibold text-lg">{selectedModel}</span>
         <svg
@@ -50,21 +45,26 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
         </svg>
       </button>
 
-      {isDropdownOpen && (
-        <div className="absolute top-full mt-2 w-48 bg-zinc-900 rounded-lg shadow-lg z-10">
-          <ul className="py-1">
-            {models.map((model) => (
-              <li
-                key={model}
-                onClick={() => handleSelectModel(model)}
-                className="px-4 py-2 hover:bg-zinc-700 cursor-pointer"
-              >
-                {model}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* The dropdown menu now has transition classes */}
+      <div
+        className={`absolute top-full mt-2 w-48 bg-zinc-900 rounded-lg shadow-lg z-10 transition-all duration-150 ease-out ${
+          isDropdownOpen
+            ? 'opacity-100 scale-100'
+            : 'opacity-0 scale-95 pointer-events-none'
+        }`}
+      >
+        <ul className="py-1">
+          {models.map((model) => (
+            <li
+              key={model}
+              onClick={() => handleSelectModel(model)}
+              className="px-4 py-2 hover:bg-zinc-700 cursor-pointer"
+            >
+              {model}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

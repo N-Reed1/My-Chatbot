@@ -29,11 +29,10 @@ function ChatInput({ onSendMessage }) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-4xl">
-      {/* 1. Change to items-end to align buttons to the bottom */}
       <div className="flex items-end bg-zinc-700 rounded-xl p-2">
         <button
           type="button"
-          className="flex-shrink-0 flex items-center justify-center w-8 h-8 mr-2 rounded-full text-gray-400 hover:bg-zinc-600 hover:text-white transition-colors"
+          className="flex-shrink-0 flex items-center justify-center w-8 h-8 mr-2 rounded-full text-gray-400 hover:bg-zinc-600 hover:text-white transition-colors cursor-pointer"
         >
           <svg
             className="w-6 h-6"
@@ -62,11 +61,10 @@ function ChatInput({ onSendMessage }) {
           rows="1"
         />
 
-        {/* 2. Conditionally render the Send button */}
         {prompt.trim() && (
           <button
             type="submit"
-            className="flex-shrink-0 flex items-center justify-center w-8 h-8 ml-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors"
+            className="flex-shrink-0 flex items-center justify-center w-8 h-8 ml-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors cursor-pointer"
           >
             <svg
               className="w-5 h-5"

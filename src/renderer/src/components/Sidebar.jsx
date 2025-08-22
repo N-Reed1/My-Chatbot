@@ -9,10 +9,9 @@ function Sidebar({ isOpen, setIsOpen }) {
         isOpen ? 'w-64' : 'w-20'
       }`}
     >
-      {/* Header with Collapse Button */}
       <div className="flex items-center">
-        <button onClick={() => setIsOpen(!isOpen)} className="p-2 hover:bg-zinc-800 rounded-lg">
-          {/* Hamburger Icon */}
+        {/* Added cursor-pointer to this button */}
+        <button onClick={() => setIsOpen(!isOpen)} className="p-2 hover:bg-zinc-800 rounded-lg cursor-pointer">
           <svg
             className="w-6 h-6"
             fill="none"
@@ -30,16 +29,14 @@ function Sidebar({ isOpen, setIsOpen }) {
         </button>
       </div>
 
-      {/* Fading Container */}
       <div
         className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-200 ${
           isOpen ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        {/* New Chat Button */}
-        <button className="flex items-center w-full p-2 mb-4 rounded-lg hover:bg-zinc-800">
+        <button className="flex items-center w-full p-2 mb-4 rounded-lg hover:bg-zinc-800 cursor-pointer">
           <svg
-            className="w-6 h-6 mr-3 flex-shrink-0" // Add flex-shrink-0
+            className="w-6 h-6 mr-3 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -55,7 +52,6 @@ function Sidebar({ isOpen, setIsOpen }) {
           <span className="whitespace-nowrap">New chat</span>
         </button>
 
-        {/* Chats Section */}
         <div className="flex-1 overflow-y-auto">
           <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Chats</h2>
           <ul className="space-y-2">
@@ -70,10 +66,9 @@ function Sidebar({ isOpen, setIsOpen }) {
           </ul>
         </div>
 
-        {/* Upload Global Section */}
         <div className="mt-4">
           <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Upload Global</h2>
-          <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-zinc-700 hover:border-gray-500 whitespace-nowrap">
+          <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-zinc-700 hover:border-gray-500 whitespace-nowrap cursor-pointer">
             Upload Files
           </button>
         </div>
