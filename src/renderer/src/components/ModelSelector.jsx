@@ -1,9 +1,30 @@
 // src/renderer/src/components/ModelSelector.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react'; // 1. Import useRef and useEffect
 
 function ModelSelector({ selectedModel, setSelectedModel }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const models = ['llama3', 'mistral', 'codellama', 'phi'];
+  const dropdownRef = useRef(null); // 2. Create a ref
+
+  // 3. Add the useEffect hook to handle clicks outside
+  useEffect(() => {
+    // Function to call when a click is detected
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false); // Close the dropdown
+      }
+    };
+
+    // Add the event listener when the dropdown is open
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Cleanup function to remove the event listener
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]); // This effect depends on the dropdown's state
 
   const handleSelectModel = (model) => {
     setSelectedModel(model);
@@ -11,7 +32,8 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
   };
 
   return (
-    <div className="relative">
+    // 4. Attach the ref to the main container div
+    <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         className="flex items-center space-x-2 p-2 rounded-lg hover:bg-zinc-700"

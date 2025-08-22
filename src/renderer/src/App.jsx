@@ -42,26 +42,23 @@ function App() {
 
   return (
     <div className="flex h-screen font-sans text-white bg-zinc-800">
-      {/* Pass only the sidebar state props */}
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Header with Model Selector */}
         <div className="flex justify-center p-4">
           <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} />
         </div>
 
-        {/* Message Container */}
         <div className="flex-1 flex justify-center overflow-y-auto">
           <div className="w-full max-w-4xl p-6 space-y-8">
             {messages.map((msg, index) => (
               <Message key={index} role={msg.role} content={msg.content} />
             ))}
+            {/* THIS IS THE FIX: Add the invisible div to scroll to */}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {/* Input Container */}
         <div className="flex justify-center p-4">
           <ChatInput onSendMessage={handleSendMessage} />
         </div>
