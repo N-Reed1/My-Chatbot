@@ -10,6 +10,7 @@ function createWindow() {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    // THIS IS THE FIX: Add the background color here
     backgroundColor: '#27272a',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -36,9 +37,8 @@ function createWindow() {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+// ... (rest of the file is unchanged)
+
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
