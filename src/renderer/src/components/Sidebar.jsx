@@ -38,7 +38,6 @@ function Sidebar({ isOpen, setIsOpen }) {
       >
         {/* Chats Section */}
         <div className="flex-1 mt-2 overflow-y-auto">
-          {/* Add whitespace-nowrap here */}
           <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Chats</h2>
           <ul className="space-y-2">
             {chats.map((chat, index) => (
@@ -54,9 +53,9 @@ function Sidebar({ isOpen, setIsOpen }) {
 
         {/* Upload Global Section */}
         <div className="mt-4">
-          {/* And also add it here */}
           <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Upload Global</h2>
-          <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-zinc-700 hover:border-gray-500">
+          {/* Add whitespace-nowrap to the button as well */}
+          <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-zinc-700 hover:border-gray-500 whitespace-nowrap">
             Upload Files
           </button>
         </div>
