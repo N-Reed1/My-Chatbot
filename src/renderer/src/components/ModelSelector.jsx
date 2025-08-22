@@ -1,28 +1,24 @@
+// src/renderer/src/components/ModelSelector.jsx
 import { useState } from 'react';
 
 function ModelSelector({ selectedModel, setSelectedModel }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const models = ['llama3', 'mistral', 'codellama', 'phi'];
 
-    const [isOpen, setIsOpen] = useState(false);
+  const handleSelectModel = (model) => {
+    setSelectedModel(model);
+    setIsDropdownOpen(false);
+  };
 
-    // This is a mock list of models for the frontend, this will be replaced later
-    const models = ['llama3', 'mistral', 'codellama', 'phi'];
-
-    const handleSelectModel = (model) => {
-        setSelectedModel(model);
-        setIsOpen(false); // close the dropdown after selection
-    };
-
-    return (
+  return (
     <div className="relative">
-      {/* The button that shows the current model and toggles the dropdown */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 p-2 rounded-lg bg-gray-700 hover:bg-gray-600"
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-zinc-700"
       >
-        <span className="font-semibold">{selectedModel}</span>
-        {/* Chevron down icon */}
+        <span className="font-semibold text-lg">{selectedModel}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className="w-5 h-5 transition-transform"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -32,15 +28,14 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
         </svg>
       </button>
 
-      {/* The dropdown menu */}
-      {isOpen && (
-        <div className="absolute top-full mt-2 w-48 bg-gray-700 rounded-lg shadow-lg z-10">
+      {isDropdownOpen && (
+        <div className="absolute top-full mt-2 w-48 bg-zinc-900 rounded-lg shadow-lg z-10">
           <ul className="py-1">
             {models.map((model) => (
               <li
                 key={model}
                 onClick={() => handleSelectModel(model)}
-                className="px-4 py-2 hover:bg-gray-600 cursor-pointer"
+                className="px-4 py-2 hover:bg-zinc-700 cursor-pointer"
               >
                 {model}
               </li>

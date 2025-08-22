@@ -1,35 +1,65 @@
 // src/renderer/src/components/Sidebar.jsx
-import ModelSelector from './ModelSelector';
 
-function Sidebar({ selectedModel, setSelectedModel }) {
-  // Mock data for the chat history
+function Sidebar({ isOpen, setIsOpen }) {
   const chats = ['React Frontend Setup', 'Ideas for a new project', 'Learning Ollama'];
 
   return (
-    <div className="w-64 bg-gray-900 p-4 flex flex-col">
-      <ModelSelector selectedModel={selectedModel} setSelectedModel={setSelectedModel} />
-
-      {/* Chats Section */}
-      <div className="flex-1 mt-6 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-3">Chats</h2>
-        <ul className="space-y-2">
-          {chats.map((chat, index) => (
-            <li
-              key={index}
-              className="p-2 rounded-lg hover:bg-gray-800 cursor-pointer truncate"
-            >
-              {chat}
-            </li>
-          ))}
-        </ul>
+    <div
+      className={`bg-zinc-900 p-4 flex flex-col space-y-4 transition-all duration-300 ${
+        isOpen ? 'w-64' : 'w-20'
+      }`}
+    >
+      {/* Header with Collapse Button */}
+      <div className="flex items-center">
+        <button onClick={() => setIsOpen(!isOpen)} className="p-2 hover:bg-zinc-800 rounded-lg">
+          {/* Hamburger Icon */}
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            ></path>
+          </svg>
+        </button>
       </div>
 
-      {/* Upload Global Section */}
-      <div className="mt-4">
-        <h2 className="text-lg font-semibold mb-3">Upload Global</h2>
-        <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500">
-          Upload Files
-        </button>
+      {/* Fading Container */}
+      <div
+        className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-200 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Chats Section */}
+        <div className="flex-1 mt-2 overflow-y-auto">
+          {/* Add whitespace-nowrap here */}
+          <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Chats</h2>
+          <ul className="space-y-2">
+            {chats.map((chat, index) => (
+              <li
+                key={index}
+                className="p-2 rounded-lg hover:bg-zinc-800 cursor-pointer truncate"
+              >
+                {chat}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Upload Global Section */}
+        <div className="mt-4">
+          {/* And also add it here */}
+          <h2 className="text-lg font-semibold mb-3 whitespace-nowrap">Upload Global</h2>
+          <button className="w-full p-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-zinc-700 hover:border-gray-500">
+            Upload Files
+          </button>
+        </div>
       </div>
     </div>
   );
