@@ -1,7 +1,6 @@
-// src/renderer/src/components/ChatInput.jsx
 import { useState, useRef, useEffect } from 'react';
 
-function ChatInput({ onSendMessage }) {
+function ChatInput({ onSendMessage, isLoading }) {
   const [prompt, setPrompt] = useState('');
   const textareaRef = useRef(null);
 
@@ -15,7 +14,7 @@ function ChatInput({ onSendMessage }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isLoading) return;
     onSendMessage(prompt);
     setPrompt('');
   };
@@ -33,6 +32,7 @@ function ChatInput({ onSendMessage }) {
         <button
           type="button"
           className="flex-shrink-0 flex items-center justify-center w-8 h-8 mr-2 rounded-full text-gray-400 hover:bg-zinc-600 hover:text-white transition-colors cursor-pointer"
+          disabled={isLoading}
         >
           <svg
             className="w-6 h-6"
@@ -55,13 +55,14 @@ function ChatInput({ onSendMessage }) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask anything..."
+          placeholder={isLoading ? 'Waiting for response...' : 'Ask anything...'}
           className="flex-1 p-1 bg-transparent text-white focus:outline-none resize-none overflow-y-auto"
           style={{ maxHeight: '12rem' }}
           rows="1"
+          disabled={isLoading}
         />
 
-        {prompt.trim() && (
+        {prompt.trim() && !isLoading && (
           <button
             type="submit"
             className="flex-shrink-0 flex items-center justify-center w-8 h-8 ml-2 rounded-full bg-white text-black hover:bg-gray-200 transition-colors cursor-pointer"

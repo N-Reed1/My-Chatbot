@@ -1,9 +1,8 @@
-// src/renderer/src/components/ModelSelector.jsx
 import { useState, useRef, useEffect } from 'react';
 
-function ModelSelector({ selectedModel, setSelectedModel }) {
+// Accept `models` as a prop
+function ModelSelector({ models, selectedModel, setSelectedModel }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const models = ['llama3', 'mistral', 'codellama', 'phi'];
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -32,6 +31,8 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         className="flex items-center space-x-2 p-2 rounded-lg hover:bg-zinc-700 cursor-pointer"
+        // Disable button if no models are found
+        disabled={!models.length || models[0] === 'No models found'}
       >
         <span className="font-semibold text-lg">{selectedModel}</span>
         <svg
@@ -45,7 +46,6 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
         </svg>
       </button>
 
-      {/* The dropdown menu now has transition classes */}
       <div
         className={`absolute top-full mt-2 w-48 bg-zinc-900 rounded-lg shadow-lg z-10 transition-all duration-150 ease-out ${
           isDropdownOpen
@@ -54,6 +54,7 @@ function ModelSelector({ selectedModel, setSelectedModel }) {
         }`}
       >
         <ul className="py-1">
+          {/* Map over the `models` prop */}
           {models.map((model) => (
             <li
               key={model}
