@@ -7,6 +7,7 @@ import ChatInput from './components/ChatInput';                 // Custom ChatIn
 import Sidebar from './components/Sidebar';                     // Custom sidebar (React Component)
 import ModelSelector from './components/ModelSelector';         // The dropdown for the LLM model (React Component)
 import ThinkingIndicator from './components/ThinkingIndicator'; // Displays the words "Thinking" while waiting for response (React Component)
+import TitleBar from './components/TitleBar';                   // This is the top bar where the user can exit and minimize (React Component)
 
 function App() {
 
@@ -122,27 +123,33 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen font-sans text-white bg-zinc-800">
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <div className="flex-1 flex flex-col">
-        <div className="flex justify-center p-4">
-          <ModelSelector
-            models={availableModels}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-          />
-        </div>
-        <div className="flex-1 flex justify-center overflow-y-auto">
-          <div className="w-full max-w-4xl p-6 space-y-8">
-            {messages.map((msg, index) => (
-              <Message key={index} role={msg.role} content={msg.content} />
-            ))}
-            {isLoading && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
-            <div ref={messagesEndRef} />
+    // 1. The main container is now a column
+    <div className="flex flex-col h-screen font-sans text-white bg-zinc-800">
+      {/* 2. The TitleBar is at the top, outside of the main content flow */}
+      <TitleBar />
+      {/* 3. A new container for the rest of the app */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+        <div className="flex-1 flex flex-col">
+          <div className="flex justify-center p-4">
+            <ModelSelector
+              models={availableModels}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+            />
           </div>
-        </div>
-        <div className="flex justify-center p-4">
-          <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+          <div className="flex-1 flex justify-center overflow-y-auto">
+            <div className="w-full max-w-4xl p-6 space-y-8">
+              {messages.map((msg, index) => (
+                <Message key={index} role={msg.role} content={msg.content} />
+              ))}
+              {isLoading && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+          <div className="flex justify-center p-4">
+            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+          </div>
         </div>
       </div>
     </div>

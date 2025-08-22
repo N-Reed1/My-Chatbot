@@ -10,12 +10,9 @@ function createWindow() {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    // THIS IS THE NEW FIX: Use titleBarOverlay for Windows
-    titleBarOverlay: {
-      color: '#27272a',
-      symbolColor: '#ffffff',
-      height: 30
-    },
+    // THIS IS THE FIX: Hide the default OS frame
+    frame: false,
+    titleBarStyle: 'hidden',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
