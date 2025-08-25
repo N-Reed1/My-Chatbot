@@ -1,9 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import fs from 'fs' // Import the Node.js file system module
 
 function createWindow() {
+  // ... (createWindow function is unchanged)
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -41,8 +43,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // THIS IS THE FIX: Listen for events from the renderer process
   ipcMain.on('window-control', (event, action) => {
+    // ... (window control logic is unchanged)
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win) {
       if (action === 'minimize') win.minimize()
@@ -57,6 +59,23 @@ app.whenReady().then(() => {
     }
   })
 
+  // THIS IS THE FIX: Handle the 'save-file' event
+  ipcMain.handle('save-file', async (event, data, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const { filePath } = await dialog.showSaveDialog(win, options)
+
+    if (filePath) {
+      try {
+        fs.writeFileSync(filePath, data)
+        return { success: true, path: filePath }
+      } catch (error) {
+        console.error('Failed to save the file:', error)
+        return { success: false, error: error.message }
+      }
+    }
+    return { success: false, error: 'Save dialog was canceled.' }
+  })
+
   createWindow()
 
   app.on('activate', function () {
@@ -65,6 +84,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  // ... (window-all-closed logic is unchanged)
   if (process.platform !== 'darwin') {
     app.quit()
   }

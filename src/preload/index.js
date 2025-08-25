@@ -3,8 +3,9 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
-  // Function to send a message to the main process to control the window
-  windowControl: (action) => ipcRenderer.send('window-control', action)
+  windowControl: (action) => ipcRenderer.send('window-control', action),
+  // Add a new function for saving files. It's async because we'll wait for a response.
+  saveFile: (data, options) => ipcRenderer.invoke('save-file', data, options)
 }
 
 // Use `contextBridge` to securely expose protected APIs to the renderer process
