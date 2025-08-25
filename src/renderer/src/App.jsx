@@ -52,32 +52,15 @@ function App() {
     if (!selectedModel || selectedModel === 'No models found') return;
     setIsLoading(true);
 
-    const imagesBase64 = [];
-    let fileContentForPrompt = '';
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    // THE FIX: Make a single call to the backend to process all files
+    const { base64Images, textContents } = await window.api.processFiles(attachedFiles);
 
-    for (const file of attachedFiles) {
-      const extension = file.path.split('.').pop().toLowerCase();
-      if (imageExtensions.includes(extension)) {
-        // Handle images for vision models
-        const base64 = await window.api.readFileAsBase64(file.path);
-        if (base64) {
-          imagesBase64.push(base64);
-        }
-      } else {
-        // Handle text-based files for language models
-        const textContent = await window.api.readFileContent(file.path);
-        if (textContent) {
-          fileContentForPrompt += `[Content from ${file.name}]:\n${textContent}\n\n`;
-        }
-      }
-    }
-
-    // Prepend the extracted text from files to the user's prompt
+    // Join the text contents from all files
+    const fileContentForPrompt = textContents.join('\n\n');
     const finalContent = fileContentForPrompt + content;
 
     const userMessageForUI = { role: 'user', content, files: attachedFiles };
-    const userMessageForAPI = { role: 'user', content: finalContent, images: imagesBase64 };
+    const userMessageForAPI = { role: 'user', content: finalContent, images: base64Images };
 
     const newMessagesForUI = [...messages, userMessageForUI, { role: 'assistant', content: '' }];
     setMessages(newMessagesForUI);
@@ -115,8 +98,7 @@ function App() {
           } catch (e) { console.error('Failed to parse JSON chunk:', jsonChunk); }
         }
       }
-    } catch (error)
-     {
+    } catch (error) {
       console.error('Failed to fetch from Ollama:', error);
       const errorMessage = { role: 'assistant', content: "Sorry, I couldn't connect. Please ensure Ollama is running." };
       setMessages(prev => [...prev.slice(0, -1), errorMessage]);

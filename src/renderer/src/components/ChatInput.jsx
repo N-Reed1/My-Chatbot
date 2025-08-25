@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 
 function ChatInput({ onSendMessage, isLoading }) {
   const [prompt, setPrompt] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState([]); // State for attached files
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -15,22 +15,21 @@ function ChatInput({ onSendMessage, isLoading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Don't send if loading or if there's no text AND no files
     if (isLoading || (!prompt.trim() && attachedFiles.length === 0)) return;
-    
-    // Pass both prompt and files to the parent
     onSendMessage(prompt, attachedFiles);
-    
     setPrompt('');
-    setAttachedFiles([]); // Clear files after sending
+    setAttachedFiles([]);
   };
 
   const handleAttachClick = async () => {
     const newFiles = await window.api.openFileDialog();
     if (newFiles && newFiles.length > 0) {
-      // Combine new files with existing ones, enforcing a 10-file limit
       setAttachedFiles(prevFiles => {
-        const combined = [...prevFiles, ...newFiles.map(path => ({ path, name: path.split(/[\\/]/).pop() }))];
+        const combined = [...prevFiles, ...newFiles.map(path => ({
+          path,
+          name: path.split(/[\\/]/).pop(),
+          type: path.split('.').pop().toUpperCase() // Get file type
+        }))];
         return combined.slice(0, 10);
       });
     }
@@ -49,13 +48,24 @@ function ChatInput({ onSendMessage, isLoading }) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-4xl">
-      {/* Display for attached files */}
+      {/* THE FIX: Changed to a vertical flex container */}
       {attachedFiles.length > 0 && (
-        <div className="mb-2 p-2 bg-zinc-800 rounded-lg flex flex-wrap gap-2">
+        <div className="mb-2 p-2 bg-zinc-800 rounded-lg flex flex-col gap-2">
           {attachedFiles.map(file => (
-            <div key={file.path} className="bg-zinc-700 text-sm rounded-full px-3 py-1 flex items-center">
-              <span>{file.name}</span>
-              <button onClick={() => handleRemoveFile(file.path)} type="button" className="ml-2 text-gray-400 hover:text-white">
+            <div key={file.path} className="bg-zinc-700 p-2 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* File Icon */}
+                <div className="bg-pink-500 p-2 rounded-md flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"></path></svg>
+                </div>
+                {/* File Name and Type */}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{file.name}</p>
+                  <p className="text-xs text-gray-400">{file.type}</p>
+                </div>
+              </div>
+              {/* Remove Button */}
+              <button onClick={() => handleRemoveFile(file.path)} type="button" className="ml-2 text-gray-400 hover:text-white cursor-pointer flex-shrink-0">
                 &times;
               </button>
             </div>
@@ -66,7 +76,7 @@ function ChatInput({ onSendMessage, isLoading }) {
       <div className="flex items-end bg-zinc-700 rounded-xl p-2">
         <button
           type="button"
-          onClick={handleAttachClick} // Attach the click handler
+          onClick={handleAttachClick}
           className="flex-shrink-0 flex items-center justify-center w-8 h-8 mr-2 rounded-full text-gray-400 hover:bg-zinc-600 hover:text-white transition-colors cursor-pointer"
           disabled={isLoading}
         >

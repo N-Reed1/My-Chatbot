@@ -6,9 +6,8 @@ const api = {
   windowControl: (action) => ipcRenderer.send('window-control', action),
   saveFile: (data, options) => ipcRenderer.invoke('save-file', data, options),
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
-  readFileAsBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
-  // Add the new function for reading text content
-  readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath)
+  // THE FIX: Replace the single-file functions with the new multi-file function
+  processFiles: (files) => ipcRenderer.invoke('process-files', files)
 }
 
 // Use `contextBridge` to securely expose protected APIs to the renderer process

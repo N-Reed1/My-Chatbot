@@ -44,7 +44,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // ... (ipcMain handlers for window-control, save-file are unchanged)
+  // ... (ipcMain handlers for window-control, save-file, open-file-dialog are unchanged)
   ipcMain.on('window-control', (event, action) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win) {
@@ -60,23 +60,29 @@ app.whenReady().then(() => {
     }
   })
 
+  // THE FIX: This handler now opens the "Save As" dialog defaulting to the Downloads folder
   ipcMain.handle('save-file', async (event, data, options) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    const { filePath } = await dialog.showSaveDialog(win, options)
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const downloadsPath = app.getPath('downloads');
+    const defaultPath = join(downloadsPath, options.defaultPath || 'download');
+
+    const { filePath } = await dialog.showSaveDialog(win, {
+      ...options,
+      defaultPath: defaultPath
+    });
+
     if (filePath) {
       try {
-        fs.writeFileSync(filePath, data)
-        return { success: true, path: filePath }
+        fs.writeFileSync(filePath, data);
+        return { success: true, path: filePath };
       } catch (error) {
-        console.error('Failed to save the file:', error)
-        return { success: false, error: error.message }
+        console.error('Failed to save the file:', error);
+        return { success: false, error: error.message };
       }
     }
-    return { success: false, error: 'Save dialog was canceled.' }
-  })
+    return { success: false, error: 'Save dialog was canceled.' };
+  });
 
-
-  // THIS IS THE FIX: Combine filters for a better macOS experience
   ipcMain.handle('open-file-dialog', async () => {
     const { filePaths } = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
@@ -88,35 +94,39 @@ app.whenReady().then(() => {
     return filePaths
   })
 
-  ipcMain.handle('read-file-base64', async (event, filePath) => {
-    try {
-      const data = fs.readFileSync(filePath, { encoding: 'base64' });
-      return data;
-    } catch (error) {
-      console.error('Failed to read file:', error);
-      return null;
-    }
-  });
+  // THIS IS THE FIX: A single function to process an array of files
+  ipcMain.handle('process-files', async (event, files) => {
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const base64Images = [];
+    const textContents = [];
 
-  ipcMain.handle('read-file-content', async (event, filePath) => {
-    try {
-      const extension = join(filePath).split('.').pop().toLowerCase();
-      if (extension === 'pdf') {
-        const dataBuffer = fs.readFileSync(filePath);
-        const data = await pdf(dataBuffer);
-        return data.text;
-      } else if (extension === 'txt' || extension === 'md') {
-        return fs.readFileSync(filePath, 'utf8');
-      } else if (extension === 'docx') {
-        return `[Content of DOCX file: ${join(filePath).split(/[\\/]/).pop()}]`;
+    for (const file of files) {
+      try {
+        const extension = join(file.path).split('.').pop().toLowerCase();
+        if (imageExtensions.includes(extension)) {
+          const data = fs.readFileSync(file.path, { encoding: 'base64' });
+          base64Images.push(data);
+        } else {
+          let content = null;
+          if (extension === 'pdf') {
+            const dataBuffer = fs.readFileSync(file.path);
+            const data = await pdf(dataBuffer);
+            content = data.text;
+          } else if (extension === 'txt' || extension === 'md') {
+            content = fs.readFileSync(file.path, 'utf8');
+          } else if (extension === 'docx') {
+            content = `[Content of DOCX file: ${file.name}]`;
+          }
+          if (content) {
+            textContents.push(`[Content from ${file.name}]:\n${content}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to process file ${file.path}:`, error);
       }
-      return null;
-    } catch (error) {
-      console.error('Failed to read file content:', error);
-      return null;
     }
+    return { base64Images, textContents };
   });
-
 
   createWindow()
 

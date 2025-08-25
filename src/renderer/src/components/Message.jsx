@@ -3,10 +3,11 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 
-function Message({ role, content, files }) { // Accept a 'files' prop
+function Message({ role, content, files }) {
   const messageRef = React.useRef(null);
 
   const handleExportPDF = async () => {
+    // ... (PDF export logic is unchanged)
     const input = messageRef.current;
     if (!input) return;
     const canvas = await html2canvas(input, {
@@ -28,6 +29,7 @@ function Message({ role, content, files }) { // Accept a 'files' prop
   };
 
   const handleExportDOCX = async () => {
+    // ... (DOCX export logic is unchanged)
     const paragraphs = content.split('\n').map(line => new Paragraph({ children: [new TextRun(line)] }));
     const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
     const docxBlob = await Packer.toBlob(doc);
@@ -39,17 +41,22 @@ function Message({ role, content, files }) { // Accept a 'files' prop
     });
   };
 
-
   if (role === 'user') {
     return (
       <div className="flex justify-end">
         <div className="max-w-lg bg-zinc-700 py-2 px-4 rounded-2xl">
-          {/* Display attached files for user messages */}
+          {/* THE FIX: Display attached files in a stacked list */}
           {files && files.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-col gap-2">
               {files.map(file => (
-                <div key={file.path} className="bg-zinc-600 text-sm rounded-full px-3 py-1">
-                  <span>{file.name}</span>
+                <div key={file.path} className="bg-zinc-800 p-2 rounded-lg flex items-center">
+                  <div className="bg-pink-500 p-2 rounded-md flex-shrink-0 mr-3">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"></path></svg>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{file.name}</p>
+                    <p className="text-xs text-gray-400">{file.type}</p>
+                  </div>
                 </div>
               ))}
             </div>
