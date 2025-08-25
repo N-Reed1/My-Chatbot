@@ -2,7 +2,8 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import fs from 'fs' // Import the Node.js file system module
+import fs from 'fs'
+import pdf from 'pdf-parse'
 
 function createWindow() {
   // ... (createWindow function is unchanged)
@@ -43,8 +44,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // ... (ipcMain handlers for window-control, save-file are unchanged)
   ipcMain.on('window-control', (event, action) => {
-    // ... (window control logic is unchanged)
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win) {
       if (action === 'minimize') win.minimize()
@@ -59,11 +60,9 @@ app.whenReady().then(() => {
     }
   })
 
-  // THIS IS THE FIX: Handle the 'save-file' event
   ipcMain.handle('save-file', async (event, data, options) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     const { filePath } = await dialog.showSaveDialog(win, options)
-
     if (filePath) {
       try {
         fs.writeFileSync(filePath, data)
@@ -76,6 +75,49 @@ app.whenReady().then(() => {
     return { success: false, error: 'Save dialog was canceled.' }
   })
 
+
+  // THIS IS THE FIX: Combine filters for a better macOS experience
+  ipcMain.handle('open-file-dialog', async () => {
+    const { filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Supported Files', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'docx', 'txt', 'md'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    return filePaths
+  })
+
+  ipcMain.handle('read-file-base64', async (event, filePath) => {
+    try {
+      const data = fs.readFileSync(filePath, { encoding: 'base64' });
+      return data;
+    } catch (error) {
+      console.error('Failed to read file:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('read-file-content', async (event, filePath) => {
+    try {
+      const extension = join(filePath).split('.').pop().toLowerCase();
+      if (extension === 'pdf') {
+        const dataBuffer = fs.readFileSync(filePath);
+        const data = await pdf(dataBuffer);
+        return data.text;
+      } else if (extension === 'txt' || extension === 'md') {
+        return fs.readFileSync(filePath, 'utf8');
+      } else if (extension === 'docx') {
+        return `[Content of DOCX file: ${join(filePath).split(/[\\/]/).pop()}]`;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to read file content:', error);
+      return null;
+    }
+  });
+
+
   createWindow()
 
   app.on('activate', function () {
@@ -84,7 +126,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  // ... (window-all-closed logic is unchanged)
   if (process.platform !== 'darwin') {
     app.quit()
   }

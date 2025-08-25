@@ -4,8 +4,11 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   windowControl: (action) => ipcRenderer.send('window-control', action),
-  // Add a new function for saving files. It's async because we'll wait for a response.
-  saveFile: (data, options) => ipcRenderer.invoke('save-file', data, options)
+  saveFile: (data, options) => ipcRenderer.invoke('save-file', data, options),
+  openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
+  readFileAsBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
+  // Add the new function for reading text content
+  readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath)
 }
 
 // Use `contextBridge` to securely expose protected APIs to the renderer process
