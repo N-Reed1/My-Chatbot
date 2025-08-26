@@ -14,6 +14,7 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [abortController, setAbortController] = useState(null);
 
   const messagesEndRef = useRef(null);
 
@@ -50,12 +51,12 @@ function App() {
 
   const handleSendMessage = async (content, attachedFiles) => {
     if (!selectedModel || selectedModel === 'No models found') return;
+
+    const controller = new AbortController();
+    setAbortController(controller);
     setIsLoading(true);
 
-    // THE FIX: Make a single call to the backend to process all files
     const { base64Images, textContents } = await window.api.processFiles(attachedFiles);
-
-    // Join the text contents from all files
     const fileContentForPrompt = textContents.join('\n\n');
     const finalContent = fileContentForPrompt + content;
 
@@ -69,6 +70,7 @@ function App() {
       const response = await fetch('http://localhost:11434/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           model: selectedModel,
           messages: [...messages, userMessageForAPI],
@@ -99,11 +101,24 @@ function App() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch from Ollama:', error);
-      const errorMessage = { role: 'assistant', content: "Sorry, I couldn't connect. Please ensure Ollama is running." };
-      setMessages(prev => [...prev.slice(0, -1), errorMessage]);
+      if (error.name === 'AbortError') {
+        console.log('Fetch aborted by user.');
+        // THE FIX: Remove both the user's message and the empty assistant placeholder
+        setMessages(prev => prev.slice(0, -2));
+      } else {
+        console.error('Failed to fetch from Ollama:', error);
+        const errorMessage = { role: 'assistant', content: "Sorry, I couldn't connect. Please ensure Ollama is running." };
+        setMessages(prev => [...prev.slice(0, -1), errorMessage]);
+      }
     } finally {
       setIsLoading(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleCancelRequest = () => {
+    if (abortController) {
+      abortController.abort();
     }
   };
 
@@ -130,7 +145,7 @@ function App() {
             </div>
           </div>
           <div className="flex justify-center p-4">
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} onCancel={handleCancelRequest} />
           </div>
         </div>
       </div>
@@ -139,3 +154,4 @@ function App() {
 }
 
 export default App;
+
