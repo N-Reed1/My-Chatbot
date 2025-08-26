@@ -1,10 +1,70 @@
-import React, { useMemo, useRef } from 'react'; // THE FIX: Add useMemo and useRef here
+import React, { useMemo, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Papa from 'papaparse';
+
+// Helper function to parse markdown for DOCX export
+const parseMarkdownForDocx = (markdown) => {
+  const paragraphs = markdown.split('\n').map(line => {
+    const trimmedLine = line.trim();
+    const indentation = line.search(/\S|$/);
+    const level = Math.floor(indentation / 2);
+
+    // Handle Headings (e.g., #, ##)
+    const headingMatch = trimmedLine.match(/^(#+)\s(.*)/);
+    if (headingMatch) {
+      const headingLevel = headingMatch[1].length;
+      const headingText = headingMatch[2];
+      let docxHeadingLevel;
+      switch (headingLevel) {
+        case 1: docxHeadingLevel = HeadingLevel.HEADING_1; break;
+        case 2: docxHeadingLevel = HeadingLevel.HEADING_2; break;
+        case 3: docxHeadingLevel = HeadingLevel.HEADING_3; break;
+        default: docxHeadingLevel = HeadingLevel.HEADING_4; break;
+      }
+      return new Paragraph({ text: headingText, heading: docxHeadingLevel });
+    }
+
+    // Handle Bullet Points
+    if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ') || trimmedLine.startsWith('+ ')) {
+      const text = trimmedLine.substring(2);
+      return new Paragraph({ text: text, bullet: { level: level } });
+    }
+
+    // Handle Bold and Italics in regular paragraphs
+    const children = [];
+    // Regex to find bold (**text**) or italics (*text* or _text_)
+    const formattingRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|_(.*?)_)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = formattingRegex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        children.push(new TextRun(line.substring(lastIndex, match.index)));
+      }
+      // Check which group was captured to determine formatting
+      if (match[2]) { // Bold
+        children.push(new TextRun({ text: match[2], bold: true }));
+      } else if (match[3]) { // Italics (*)
+        children.push(new TextRun({ text: match[3], italics: true }));
+      } else if (match[4]) { // Italics (_)
+        children.push(new TextRun({ text: match[4], italics: true }));
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < line.length) {
+      children.push(new TextRun(line.substring(lastIndex)));
+    }
+    
+    return new Paragraph({ children });
+  });
+
+  return paragraphs;
+};
+
 
 function Message({ role, content, files }) {
   const messageRef = useRef(null);
@@ -35,8 +95,8 @@ function Message({ role, content, files }) {
   };
 
   const handleExportDOCX = async () => {
-    const paragraphs = content.split('\n').map(line => new Paragraph({ children: [new TextRun(line)] }));
-    const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+    const paragraphs = parseMarkdownForDocx(content);
+    const doc = new Document({ sections: [{ children: paragraphs }] });
     const docxBlob = await Packer.toBlob(doc);
     const docxData = await docxBlob.arrayBuffer();
     await window.api.saveFile(new Uint8Array(docxData), {
@@ -108,16 +168,18 @@ function Message({ role, content, files }) {
         </ReactMarkdown>
       </div>
       
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 mt-2 flex items-center space-x-2">
-        <button onClick={handleExportPDF} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as PDF">
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 mt-2 inline-flex items-center bg-zinc-700 rounded-md shadow-lg p-1 space-x-1">
+        <button onClick={handleExportPDF} className="p-1 text-gray-400 hover:bg-zinc-600 hover:text-white rounded cursor-pointer" title="Export as PDF">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
         </button>
-        <button onClick={handleExportDOCX} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as DOCX">
+        <button onClick={handleExportDOCX} className="p-1 text-gray-400 hover:bg-zinc-600 hover:text-white rounded cursor-pointer" title="Export as DOCX">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm5.293 2.293a1 1 0 011.414 0l2 2a1 1 0 11-1.414 1.414L11 8.414V13a1 1 0 11-2 0V8.414L8.707 9.707a1 1 0 01-1.414-1.414l2-2z" clipRule="evenodd"></path></svg>
         </button>
         {hasTableData && (
-          <button onClick={handleExportCSV} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as CSV">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V7zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd"></path></svg>
+          <button onClick={handleExportCSV} className="p-1 text-gray-400 hover:bg-zinc-600 hover:text-white rounded cursor-pointer" title="Export as CSV">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 3a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm2 2v2h3V5H4zm0 4v2h3V9H4zm0 4v2h3v-2H4zm5-8v2h3V5H9zm0 4v2h3V9H9zm0 4v2h3v-2H9zm5-8v2h3V5h-3zm0 4v2h3V9h-3z"></path>
+            </svg>
           </button>
         )}
       </div>
