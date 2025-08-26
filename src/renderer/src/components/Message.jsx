@@ -79,8 +79,10 @@ const parseMarkdownForDocx = (markdown) => {
 function Message({ role, content, files }) {
   const messageRef = useRef(null);
 
-  const hasTableData = useMemo(() => {
-    return content.includes('|') && content.includes('---');
+  const hasCsvData = useMemo(() => {
+    const isMarkdownTable = content.includes('|') && content.includes('---');
+    const isRawCsv = content.trim().split('\n')[0].includes(',');
+    return isMarkdownTable || isRawCsv;
   }, [content]);
 
   const handleExportPDF = async () => {
@@ -118,20 +120,22 @@ function Message({ role, content, files }) {
 
 
   const handleExportCSV = async () => {
-    const lines = content.split('\n').filter(line => line.includes('|'));
-    const dataLines = lines.filter(line => !line.match(/\|-{3,}\|/));
+    let csvString;
+    const isMarkdownTable = content.includes('|') && content.includes('---');
 
-    if (dataLines.length === 0) {
-      console.log("No table data found to export.");
-      return;
+    if (isMarkdownTable) {
+      const lines = content.split('\n').filter(line => line.includes('|'));
+      const dataLines = lines.filter(line => !line.match(/\|-{3,}\|/));
+      if (dataLines.length === 0) return;
+      const data = dataLines.map(line => 
+        line.split('|').map(cell => cell.trim()).slice(1, -1)
+      );
+      csvString = Papa.unparse(data);
+    } else {
+      csvString = content;
     }
-
-    const data = dataLines.map(line => 
-      line.split('|').map(cell => cell.trim()).slice(1, -1)
-    );
-
-    const csv = Papa.unparse(data);
-    const csvData = new TextEncoder().encode(csv);
+    
+    const csvData = new TextEncoder().encode(csvString);
     
     await window.api.saveFile(csvData, {
       title: 'Save Chat Export as CSV',
@@ -185,7 +189,7 @@ function Message({ role, content, files }) {
         <button onClick={handleExportDOCX} className="p-1 text-gray-400 hover:bg-zinc-600 hover:text-white rounded cursor-pointer" title="Export as DOCX">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm5.293 2.293a1 1 0 011.414 0l2 2a1 1 0 11-1.414 1.414L11 8.414V13a1 1 0 11-2 0V8.414L8.707 9.707a1 1 0 01-1.414-1.414l2-2z" clipRule="evenodd"></path></svg>
         </button>
-        {hasTableData && (
+        {hasCsvData && (
           <button onClick={handleExportCSV} className="p-1 text-gray-400 hover:bg-zinc-600 hover:text-white rounded cursor-pointer" title="Export as CSV">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
               <path d="M2 3a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm2 2v2h3V5H4zm0 4v2h3V9H4zm0 4v2h3v-2H4zm5-8v2h3V5H9zm0 4v2h3V9H9zm0 4v2h3v-2H9zm5-8v2h3V5h-3zm0 4v2h3V9h-3z"></path>
