@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react'; // THE FIX: Add useMemo and useRef here
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import Papa from 'papaparse';
 
 function Message({ role, content, files }) {
-  const messageRef = React.useRef(null);
+  const messageRef = useRef(null);
 
-  // ... (handleExportPDF and handleExportDOCX functions are unchanged)
+  const hasTableData = useMemo(() => {
+    return content.includes('|') && content.includes('---');
+  }, [content]);
+
   const handleExportPDF = async () => {
     const input = messageRef.current;
     if (!input) return;
@@ -43,6 +47,29 @@ function Message({ role, content, files }) {
   };
 
 
+  const handleExportCSV = async () => {
+    const lines = content.split('\n').filter(line => line.includes('|'));
+    const dataLines = lines.filter(line => !line.match(/\|-{3,}\|/));
+
+    if (dataLines.length === 0) {
+      console.log("No table data found to export.");
+      return;
+    }
+
+    const data = dataLines.map(line => 
+      line.split('|').map(cell => cell.trim()).slice(1, -1)
+    );
+
+    const csv = Papa.unparse(data);
+    const csvData = new TextEncoder().encode(csv);
+    
+    await window.api.saveFile(csvData, {
+      title: 'Save Chat Export as CSV',
+      defaultPath: 'chat-export.csv',
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+    });
+  };
+
   if (role === 'user') {
     return (
       <div className="flex justify-end">
@@ -75,7 +102,6 @@ function Message({ role, content, files }) {
       style={{ backgroundColor: '#27272a' }}
       ref={messageRef}
     >
-      {/* THE FIX: Wrap ReactMarkdown in a div and apply classes to the div */}
       <div className="prose prose-invert">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {content}
@@ -89,6 +115,11 @@ function Message({ role, content, files }) {
         <button onClick={handleExportDOCX} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as DOCX">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm5.293 2.293a1 1 0 011.414 0l2 2a1 1 0 11-1.414 1.414L11 8.414V13a1 1 0 11-2 0V8.414L8.707 9.707a1 1 0 01-1.414-1.414l2-2z" clipRule="evenodd"></path></svg>
         </button>
+        {hasTableData && (
+          <button onClick={handleExportCSV} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as CSV">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V7zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd"></path></svg>
+          </button>
+        )}
       </div>
     </div>
   );
