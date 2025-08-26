@@ -22,3 +22,20 @@
 .draggable {
   -webkit-app-region: drag;
 }
+
+/* Custom styles for rendered Markdown content */
+.prose ul {
+  @apply list-disc list-inside;
+}
+
+.prose ol {
+  @apply list-decimal list-inside;
+}
+
+.prose li {
+  @apply mb-2;
+}
+
+.prose a {
+  @apply text-blue-400 hover:underline;
+}

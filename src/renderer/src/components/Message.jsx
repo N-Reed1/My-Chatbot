@@ -2,12 +2,14 @@ import React from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 function Message({ role, content, files }) {
   const messageRef = React.useRef(null);
 
+  // ... (handleExportPDF and handleExportDOCX functions are unchanged)
   const handleExportPDF = async () => {
-    // ... (PDF export logic is unchanged)
     const input = messageRef.current;
     if (!input) return;
     const canvas = await html2canvas(input, {
@@ -29,7 +31,6 @@ function Message({ role, content, files }) {
   };
 
   const handleExportDOCX = async () => {
-    // ... (DOCX export logic is unchanged)
     const paragraphs = content.split('\n').map(line => new Paragraph({ children: [new TextRun(line)] }));
     const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
     const docxBlob = await Packer.toBlob(doc);
@@ -41,11 +42,11 @@ function Message({ role, content, files }) {
     });
   };
 
+
   if (role === 'user') {
     return (
       <div className="flex justify-end">
         <div className="max-w-lg bg-zinc-700 py-2 px-4 rounded-2xl">
-          {/* THE FIX: Display attached files in a stacked list */}
           {files && files.length > 0 && (
             <div className="mb-2 flex flex-col gap-2">
               {files.map(file => (
@@ -74,7 +75,13 @@ function Message({ role, content, files }) {
       style={{ backgroundColor: '#27272a' }}
       ref={messageRef}
     >
-      <p className="whitespace-pre-wrap text-white break-words">{content}</p>
+      {/* THE FIX: Wrap ReactMarkdown in a div and apply classes to the div */}
+      <div className="prose prose-invert">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
+      </div>
+      
       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 mt-2 flex items-center space-x-2">
         <button onClick={handleExportPDF} className="p-1 text-gray-400 hover:text-white cursor-pointer" title="Export as PDF">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
