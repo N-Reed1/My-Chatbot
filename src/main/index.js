@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron' // 1. Add Menu and MenuItem
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -6,7 +6,6 @@ import fs from 'fs'
 import pdf from 'pdf-parse'
 
 function createWindow() {
-  // ... (createWindow function is unchanged)
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -20,6 +19,33 @@ function createWindow() {
       sandbox: false
     }
   })
+
+  // 2. Add this event listener inside the createWindow function
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menu = new Menu()
+
+    // Add each spelling suggestion
+    for (const suggestion of params.dictionarySuggestions) {
+      menu.append(new MenuItem({
+        label: suggestion,
+        click: () => mainWindow.webContents.replaceMisspelling(suggestion)
+      }))
+    }
+
+    // Allow users to add the misspelled word to the dictionary
+    if (params.misspelledWord) {
+      menu.append(
+        new MenuItem({
+          label: 'Add to dictionary',
+          click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+        })
+      )
+    }
+    
+    // Show the menu
+    menu.popup()
+  })
+
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

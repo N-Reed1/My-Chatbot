@@ -31,12 +31,27 @@ const parseMarkdownForDocx = (markdown) => {
     // Handle Bullet Points
     if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ') || trimmedLine.startsWith('+ ')) {
       const text = trimmedLine.substring(2);
-      return new Paragraph({ text: text, bullet: { level: level } });
+      const children = [];
+      const formattingRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|_(.*?)_)/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = formattingRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          children.push(new TextRun(text.substring(lastIndex, match.index)));
+        }
+        if (match[2]) { children.push(new TextRun({ text: match[2], bold: true })); }
+        else if (match[3]) { children.push(new TextRun({ text: match[3], italics: true })); }
+        else if (match[4]) { children.push(new TextRun({ text: match[4], italics: true })); }
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < text.length) {
+        children.push(new TextRun(text.substring(lastIndex)));
+      }
+      return new Paragraph({ children: children, bullet: { level: level } });
     }
 
     // Handle Bold and Italics in regular paragraphs
     const children = [];
-    // Regex to find bold (**text**) or italics (*text* or _text_)
     const formattingRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|_(.*?)_)/g;
     let lastIndex = 0;
     let match;
@@ -45,14 +60,9 @@ const parseMarkdownForDocx = (markdown) => {
       if (match.index > lastIndex) {
         children.push(new TextRun(line.substring(lastIndex, match.index)));
       }
-      // Check which group was captured to determine formatting
-      if (match[2]) { // Bold
-        children.push(new TextRun({ text: match[2], bold: true }));
-      } else if (match[3]) { // Italics (*)
-        children.push(new TextRun({ text: match[3], italics: true }));
-      } else if (match[4]) { // Italics (_)
-        children.push(new TextRun({ text: match[4], italics: true }));
-      }
+      if (match[2]) { children.push(new TextRun({ text: match[2], bold: true })); }
+      else if (match[3]) { children.push(new TextRun({ text: match[3], italics: true })); }
+      else if (match[4]) { children.push(new TextRun({ text: match[4], italics: true })); }
       lastIndex = match.index + match[0].length;
     }
     if (lastIndex < line.length) {
@@ -132,7 +142,7 @@ function Message({ role, content, files }) {
 
   if (role === 'user') {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end animate-fadeInUp">
         <div className="max-w-lg bg-zinc-700 py-2 px-4 rounded-2xl">
           {files && files.length > 0 && (
             <div className="mb-2 flex flex-col gap-2">
@@ -158,7 +168,7 @@ function Message({ role, content, files }) {
   // Assistant Message
   return (
     <div
-      className="group w-full p-4 rounded-lg"
+      className="group w-full p-4 rounded-lg animate-fadeInUp"
       style={{ backgroundColor: '#27272a' }}
       ref={messageRef}
     >

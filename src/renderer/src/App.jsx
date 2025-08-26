@@ -7,15 +7,14 @@ import ThinkingIndicator from './components/ThinkingIndicator';
 import TitleBar from './components/TitleBar';
 
 function App() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hello! How can I help you today?' },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [abortController, setAbortController] = useState(null);
 
+  // THE FIX: Ensure messagesEndRef is defined at the top of the component
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -63,7 +62,9 @@ function App() {
     const userMessageForUI = { role: 'user', content, files: attachedFiles };
     const userMessageForAPI = { role: 'user', content: finalContent, images: base64Images };
 
-    const newMessagesForUI = [...messages, userMessageForUI, { role: 'assistant', content: '' }];
+    const messageHistory = messages.length === 0 ? [] : messages;
+
+    const newMessagesForUI = [...messageHistory, userMessageForUI, { role: 'assistant', content: '' }];
     setMessages(newMessagesForUI);
 
     try {
@@ -73,7 +74,7 @@ function App() {
         signal: controller.signal,
         body: JSON.stringify({
           model: selectedModel,
-          messages: [...messages, userMessageForAPI],
+          messages: [...messageHistory, userMessageForAPI],
           stream: true,
         }),
       });
@@ -103,7 +104,6 @@ function App() {
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('Fetch aborted by user.');
-        // THE FIX: Remove both the user's message and the empty assistant placeholder
         setMessages(prev => prev.slice(0, -2));
       } else {
         console.error('Failed to fetch from Ollama:', error);
@@ -135,14 +135,22 @@ function App() {
               setSelectedModel={setSelectedModel}
             />
           </div>
-          <div className="flex-1 flex justify-center overflow-y-auto">
-            <div className="w-full max-w-4xl p-6 space-y-8">
-              {messages.map((msg, index) => (
-                <Message key={index} role={msg.role} content={msg.content} files={msg.files} />
-              ))}
-              {isLoading && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
-              <div ref={messagesEndRef} />
-            </div>
+          <div className="flex-1 flex justify-center items-center overflow-y-auto">
+            {messages.length === 0 ? (
+              <div className="text-center">
+                <h1 className="text-2xl font-semibold text-gray-400">
+                  Hello, how can I help you today?
+                </h1>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl p-6 space-y-8 self-start">
+                {messages.map((msg, index) => (
+                  <Message key={index} role={msg.role} content={msg.content} files={msg.files} />
+                ))}
+                {isLoading && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
           <div className="flex justify-center p-4">
             <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} onCancel={handleCancelRequest} />
