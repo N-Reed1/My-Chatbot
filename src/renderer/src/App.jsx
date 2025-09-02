@@ -1,165 +1,257 @@
-import { useState, useRef, useEffect } from 'react';
-import Message from './components/Message';
-import ChatInput from './components/ChatInput';
-import Sidebar from './components/Sidebar';
-import ModelSelector from './components/ModelSelector';
-import ThinkingIndicator from './components/ThinkingIndicator';
-import TitleBar from './components/TitleBar';
+import { useState, useRef, useEffect } from 'react'
+import { v4 as uuidv4 } from 'uuid'
+import Message from './components/Message'
+import ChatInput from './components/ChatInput'
+import Sidebar from './components/Sidebar'
+import ModelSelector from './components/ModelSelector'
+import TitleBar from './components/TitleBar'
+import ThinkingIndicator from './components/ThinkingIndicator'
+import WelcomeMessage from './components/WelcomeMessage'
 
 function App() {
-  const [messages, setMessages] = useState([]);
-  const [availableModels, setAvailableModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [abortController, setAbortController] = useState(null);
+  const [chats, setChats] = useState([])
+  const [activeChatId, setActiveChatId] = useState(null)
 
-  // THE FIX: Ensure messagesEndRef is defined at the top of the component
-  const messagesEndRef = useRef(null);
+  const [models, setModels] = useState([])
+  const [selectedModel, setSelectedModel] = useState('')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const abortControllerRef = useRef(null)
+  const messagesEndRef = useRef(null)
 
   useEffect(() => {
+    const loadInitialData = async () => {
+      const loadedChats = await window.api.loadChats()
+      setChats(loadedChats)
+    }
     const fetchModels = async () => {
       try {
-        const response = await fetch('http://localhost:11434/api/tags');
-        if (!response.ok) throw new Error('Could not fetch models from Ollama.');
-        const data = await response.json();
-        const modelNames = data.models.map(model => model.name.split(':')[0]);
-        if (modelNames.length > 0) {
-          setAvailableModels(modelNames);
-          setSelectedModel(modelNames[0]);
+        const response = await fetch('http://localhost:11434/api/tags')
+        const data = await response.json()
+        if (data.models && data.models.length > 0) {
+          const modelNames = data.models.map((model) => model.name.split(':')[0])
+          setModels(modelNames)
+          setSelectedModel(modelNames[0])
         } else {
-          setAvailableModels(['No models found']);
-          setSelectedModel('No models found');
+          setModels(['No models found'])
+          setSelectedModel('No models found')
         }
       } catch (error) {
-        console.error('Error fetching models:', error);
-        setAvailableModels(['No models found']);
-        setSelectedModel('No models found');
+        console.error('Failed to fetch models:', error)
+        setModels(['Ollama not running'])
+        setSelectedModel('Ollama not running')
       }
-    };
-    fetchModels();
-  }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+    }
+    loadInitialData()
+    fetchModels()
+  }, [])
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages[messages.length - 1]?.content]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chats, activeChatId])
 
-  const handleSendMessage = async (content, attachedFiles) => {
-    if (!selectedModel || selectedModel === 'No models found') return;
+  // --- Chat Management Functions ---
+  const startNewChat = () => {
+    setActiveChatId(null)
+  }
 
-    const controller = new AbortController();
-    setAbortController(controller);
-    setIsLoading(true);
+  const handleDeleteChat = (chatId) => {
+    const updatedChats = chats.filter((chat) => chat.id !== chatId)
+    setChats(updatedChats)
+    window.api.deleteChat(chatId)
+    // THE FIX: If the deleted chat is the active one, always go to the new chat screen.
+    if (activeChatId === chatId) {
+      setActiveChatId(null)
+    }
+  }
 
-    const { base64Images, textContents } = await window.api.processFiles(attachedFiles);
-    const fileContentForPrompt = textContents.join('\n\n');
-    const finalContent = fileContentForPrompt + content;
+  const handleSelectChat = (chatId) => {
+    setActiveChatId(chatId)
+  }
 
-    const userMessageForUI = { role: 'user', content, files: attachedFiles };
-    const userMessageForAPI = { role: 'user', content: finalContent, images: base64Images };
+  const handleRenameChat = (chatId, newTitle) => {
+    const updatedChats = chats.map((chat) => {
+      if (chat.id === chatId) {
+        return { ...chat, title: newTitle.trim() || 'Renamed Chat' }
+      }
+      return chat
+    })
+    setChats(updatedChats)
+    window.api.saveChats(updatedChats)
+  }
 
-    const messageHistory = messages.length === 0 ? [] : messages;
+  // --- Message Handling ---
+  const handleSendMessage = async (prompt, attachedFiles) => {
+    if (!selectedModel || selectedModel.includes(' ') || models.length === 0) {
+      console.error('Attempted to send message without a valid model selected.')
+      return
+    }
 
-    const newMessagesForUI = [...messageHistory, userMessageForUI, { role: 'assistant', content: '' }];
-    setMessages(newMessagesForUI);
+    setIsLoading(true)
+    abortControllerRef.current = new AbortController()
+    const userMessage = { role: 'user', content: prompt, files: attachedFiles }
+    let currentChatId = activeChatId
+    let updatedChats
+
+    if (!currentChatId) {
+      const newChat = {
+        id: uuidv4(),
+        title: prompt.substring(0, 40) + (prompt.length > 40 ? '...' : ''),
+        messages: [userMessage],
+        createdAt: new Date().toISOString()
+      }
+      updatedChats = [newChat, ...chats]
+      currentChatId = newChat.id
+      setActiveChatId(newChat.id)
+    } else {
+      updatedChats = chats.map((chat) => {
+        if (chat.id === currentChatId) {
+          return { ...chat, messages: [...chat.messages, userMessage] }
+        }
+        return chat
+      })
+    }
+    setChats(updatedChats)
+
+    const currentChat = updatedChats.find((chat) => chat.id === currentChatId)
+    if (!currentChat) {
+      setIsLoading(false)
+      return
+    }
 
     try {
+      const apiMessages = []
+      for (const message of currentChat.messages) {
+        if (message.files && message.files.length > 0) {
+          const processedFiles = await window.api.processFiles(message.files)
+          const textContents = processedFiles.filter((f) => f.type === 'text').map((f) => f.content)
+          const base64Images = processedFiles.filter((f) => f.type === 'image').map((f) => f.content)
+          apiMessages.push({
+            role: message.role,
+            content: [message.content, ...textContents].join('\n\n'),
+            images: base64Images.length > 0 ? base64Images : undefined
+          })
+        } else {
+          apiMessages.push({ role: message.role, content: message.content })
+        }
+      }
+
       const response = await fetch('http://localhost:11434/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [...messageHistory, userMessageForAPI],
-          stream: true,
-        }),
-      });
+        body: JSON.stringify({ model: selectedModel, messages: apiMessages, stream: true }),
+        signal: abortControllerRef.current.signal
+      })
 
-      if (!response.body) throw new Error('Response body is null');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        const chunk = decoder.decode(value, { stream: true });
-        const jsonChunks = chunk.split('\n').filter(Boolean);
-        for (const jsonChunk of jsonChunks) {
-          try {
-            const parsed = JSON.parse(jsonChunk);
-            if (parsed.message && parsed.message.content) {
-              setMessages((prevMessages) => {
-                const lastMessage = prevMessages[prevMessages.length - 1];
-                const updatedLastMessage = { ...lastMessage, content: lastMessage.content + parsed.message.content };
-                return [...prevMessages.slice(0, -1), updatedLastMessage];
-              });
+      if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(`Ollama API error (${response.status}): ${errorBody}`)
+      }
+
+      setChats((prevChats) =>
+        prevChats.map((chat) => {
+          if (chat.id === currentChatId) {
+            return { ...chat, messages: [...chat.messages, { role: 'assistant', content: '' }] }
+          }
+          return chat
+        })
+      )
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+        for (const line of lines) {
+          if (line.trim()) {
+            const data = JSON.parse(line)
+            if (data.message && data.message.content) {
+              setChats((prevChats) =>
+                prevChats.map((c) => {
+                  if (c.id === currentChatId) {
+                    const lastMessage = c.messages[c.messages.length - 1]
+                    const updatedLastMessage = { ...lastMessage, content: lastMessage.content + data.message.content }
+                    return { ...c, messages: [...c.messages.slice(0, -1), updatedLastMessage] }
+                  }
+                  return c
+                })
+              )
             }
-          } catch (e) { console.error('Failed to parse JSON chunk:', jsonChunk); }
+          }
         }
       }
+
+      setChats((currentChats) => {
+        window.api.saveChats(currentChats)
+        return currentChats
+      })
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.log('Fetch aborted by user.');
-        setMessages(prev => prev.slice(0, -2));
+        console.log('Fetch aborted by user.')
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat.id === currentChatId) {
+              return { ...chat, messages: chat.messages.slice(0, -1) }
+            }
+            return chat
+          })
+        )
       } else {
-        console.error('Failed to fetch from Ollama:', error);
-        const errorMessage = { role: 'assistant', content: "Sorry, I couldn't connect. Please ensure Ollama is running." };
-        setMessages(prev => [...prev.slice(0, -1), errorMessage]);
+        console.error('Failed to fetch from Ollama:', error)
       }
     } finally {
-      setIsLoading(false);
-      setAbortController(null);
+      setIsLoading(false)
     }
-  };
+  }
 
-  const handleCancelRequest = () => {
-    if (abortController) {
-      abortController.abort();
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
-  };
+  }
+
+  const activeChat = chats.find((chat) => chat.id === activeChatId)
+  const messages = activeChat ? activeChat.messages : []
+  const isInputDisabled = isLoading || !selectedModel || models.length === 0 || models[0].includes(' ')
 
   return (
-    <div className="flex flex-col h-screen font-sans text-white bg-zinc-800">
+    <div className="flex h-screen flex-col font-sans text-white bg-zinc-800">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-        <div className="flex-1 flex flex-col">
+        <Sidebar
+          chats={chats} activeChatId={activeChatId} onNewChat={startNewChat}
+          onSelectChat={handleSelectChat} onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen}
+        />
+        <div className="flex flex-1 flex-col">
           <div className="flex justify-center p-4">
-            <ModelSelector
-              models={availableModels}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
-            />
+            <ModelSelector models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel}/>
           </div>
-          <div className="flex-1 flex justify-center items-center overflow-y-auto">
+          <div className="flex-1 flex justify-center items-center overflow-y-auto p-6">
             {messages.length === 0 ? (
-              <div className="text-center">
-                <h1 className="text-2xl font-semibold text-gray-400">
-                  Hello, how can I help you today?
-                </h1>
-              </div>
+              <WelcomeMessage />
             ) : (
-              <div className="w-full max-w-4xl p-6 space-y-8 self-start">
+              <div className="w-full max-w-4xl space-y-8 self-start">
                 {messages.map((msg, index) => (
-                  <Message key={index} role={msg.role} content={msg.content} files={msg.files} />
+                  <Message key={index} role={msg.role} content={msg.content} files={msg.files}/>
                 ))}
-                {isLoading && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
+                {isLoading && messages.length > 0 && messages[messages.length - 1]?.content === '' && <ThinkingIndicator />}
                 <div ref={messagesEndRef} />
               </div>
             )}
           </div>
           <div className="flex justify-center p-4">
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} onCancel={handleCancelRequest} />
+            <ChatInput
+              onSendMessage={handleSendMessage} isLoading={isLoading}
+              isDisabled={isInputDisabled} onCancel={handleCancel}
+            />
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
-
+export default App

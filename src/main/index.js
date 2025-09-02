@@ -1,51 +1,34 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron' // 1. Add Menu and MenuItem
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
-import pdf from 'pdf-parse'
+import path from 'path'
+import mime from 'mime-types'
+
+const CHATS_FILE_PATH = path.join(app.getPath('userData'), 'chats.json')
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
-    frame: false,
-    titleBarStyle: 'hidden',
     ...(process.platform === 'linux' ? { icon } : {}),
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hidden',
+          trafficLightPosition: { x: 15, y: 15 }
+        }
+      : {
+          frame: false
+        }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true
     }
   })
-
-  // 2. Add this event listener inside the createWindow function
-  mainWindow.webContents.on('context-menu', (event, params) => {
-    const menu = new Menu()
-
-    // Add each spelling suggestion
-    for (const suggestion of params.dictionarySuggestions) {
-      menu.append(new MenuItem({
-        label: suggestion,
-        click: () => mainWindow.webContents.replaceMisspelling(suggestion)
-      }))
-    }
-
-    // Allow users to add the misspelled word to the dictionary
-    if (params.misspelledWord) {
-      menu.append(
-        new MenuItem({
-          label: 'Add to dictionary',
-          click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
-        })
-      )
-    }
-    
-    // Show the menu
-    menu.popup()
-  })
-
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -58,101 +41,102 @@ function createWindow() {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
+// --- IPC Handlers ---
+
+// Window Controls
+ipcMain.on('window-control', (event, action) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (action === 'minimize') window.minimize()
+  else if (action === 'maximize') {
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+  } else if (action === 'close') window.close()
+})
+
+// Chat History Management
+const readChatsFromFile = () => {
+  try {
+    if (fs.existsSync(CHATS_FILE_PATH)) {
+      const data = fs.readFileSync(CHATS_FILE_PATH, 'utf-8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.error('Failed to read chats file:', error)
+  }
+  return []
+}
+
+const writeChatsToFile = (chats) => {
+  try {
+    fs.writeFileSync(CHATS_FILE_PATH, JSON.stringify(chats, null, 2), 'utf-8')
+  } catch (error) {
+    console.error('Failed to write chats file:', error)
+  }
+}
+
+ipcMain.handle('load-chats', () => {
+  return readChatsFromFile()
+})
+
+ipcMain.handle('save-chats', (event, chats) => {
+  writeChatsToFile(chats)
+})
+
+ipcMain.handle('delete-chat', (event, chatId) => {
+  const chats = readChatsFromFile()
+  const updatedChats = chats.filter((chat) => chat.id !== chatId)
+  writeChatsToFile(updatedChats)
+})
+
+// File Operations
+ipcMain.handle('save-file', async (event, data, options) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  const { filePath } = await dialog.showSaveDialog(window, options)
+  if (filePath) {
+    fs.writeFileSync(filePath, data)
+    return filePath
+  }
+  return null
+})
+
+ipcMain.handle('open-file-dialog', async () => {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections']
+  })
+  return filePaths
+})
+
+// THE FIX: Renamed 'read-files' to 'process-files' to match the frontend call
+ipcMain.handle('process-files', async (event, files) => {
+  const processedFiles = []
+  for (const file of files) {
+    try {
+      const mimeType = mime.lookup(file.path)
+      if (mimeType && mimeType.startsWith('image/')) {
+        const data = fs.readFileSync(file.path, 'base64')
+        processedFiles.push({ name: file.name, type: 'image', content: data })
+      } else {
+        const content = fs.readFileSync(file.path, 'utf-8')
+        processedFiles.push({ name: file.name, type: 'text', content })
+      }
+    } catch (error) {
+      console.error(`Failed to read file ${file.path}:`, error)
+    }
+  }
+  return processedFiles
+})
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
-
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // ... (ipcMain handlers for window-control, save-file, open-file-dialog are unchanged)
-  ipcMain.on('window-control', (event, action) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win) {
-      if (action === 'minimize') win.minimize()
-      if (action === 'maximize') {
-        if (win.isMaximized()) {
-          win.unmaximize()
-        } else {
-          win.maximize()
-        }
-      }
-      if (action === 'close') win.close()
-    }
-  })
-
-  // THE FIX: This handler now opens the "Save As" dialog defaulting to the Downloads folder
-  ipcMain.handle('save-file', async (event, data, options) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const downloadsPath = app.getPath('downloads');
-    const defaultPath = join(downloadsPath, options.defaultPath || 'download');
-
-    const { filePath } = await dialog.showSaveDialog(win, {
-      ...options,
-      defaultPath: defaultPath
-    });
-
-    if (filePath) {
-      try {
-        fs.writeFileSync(filePath, data);
-        return { success: true, path: filePath };
-      } catch (error) {
-        console.error('Failed to save the file:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    return { success: false, error: 'Save dialog was canceled.' };
-  });
-
-  ipcMain.handle('open-file-dialog', async () => {
-    const { filePaths } = await dialog.showOpenDialog({
-      properties: ['openFile', 'multiSelections'],
-      filters: [
-        { name: 'Supported Files', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'docx', 'txt', 'md'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    })
-    return filePaths
-  })
-
-  // THIS IS THE FIX: A single function to process an array of files
-  ipcMain.handle('process-files', async (event, files) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    const base64Images = [];
-    const textContents = [];
-
-    for (const file of files) {
-      try {
-        const extension = join(file.path).split('.').pop().toLowerCase();
-        if (imageExtensions.includes(extension)) {
-          const data = fs.readFileSync(file.path, { encoding: 'base64' });
-          base64Images.push(data);
-        } else {
-          let content = null;
-          if (extension === 'pdf') {
-            const dataBuffer = fs.readFileSync(file.path);
-            const data = await pdf(dataBuffer);
-            content = data.text;
-          } else if (extension === 'txt' || extension === 'md') {
-            content = fs.readFileSync(file.path, 'utf8');
-          } else if (extension === 'docx') {
-            content = `[Content of DOCX file: ${file.name}]`;
-          }
-          if (content) {
-            textContents.push(`[Content from ${file.name}]:\n${content}`);
-          }
-        }
-      } catch (error) {
-        console.error(`Failed to process file ${file.path}:`, error);
-      }
-    }
-    return { base64Images, textContents };
-  });
 
   createWindow()
 
